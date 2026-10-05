@@ -133,7 +133,7 @@ function App() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex cursor-pointer items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${
+              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${
                 tab === t.id
                   ? 'bg-[var(--accent)] text-black font-medium'
                   : 'text-[var(--text-muted)] hover:bg-[var(--surface-2)]'

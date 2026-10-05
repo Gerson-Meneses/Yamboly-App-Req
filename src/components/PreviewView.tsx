@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, Share2 } from 'lucide-react';
 import type { Catalogos, Registro } from '../types';
 import { Card } from './ui/Card';
 import Button from './ui/Button';
-import { exportRequerimiento } from '../lib/excelExport';
+import { buildRequerimientoFile } from '../lib/excelExport';
+import { downloadFile, shareFile } from '../lib/fileActions';
 
 interface Props {
   catalogos: Catalogos;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function PreviewView({ catalogos, registros }: Props) {
   const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const grupos = useMemo(() => {
     return catalogos.vendedores
@@ -37,9 +39,20 @@ export default function PreviewView({ catalogos, registros }: Props) {
   async function handleExport() {
     setExporting(true);
     try {
-      await exportRequerimiento(catalogos, registros);
+      const file = await buildRequerimientoFile(catalogos, registros);
+      downloadFile(file);
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleShare() {
+    setSharing(true);
+    try {
+      const file = await buildRequerimientoFile(catalogos, registros);
+      await shareFile(file, 'Requerimiento de Llaves');
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -53,11 +66,16 @@ export default function PreviewView({ catalogos, registros }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-lg font-semibold">Vista previa del requerimiento</h2>
-        <Button variant="primary" onClick={handleExport} disabled={exporting}>
-          <FileSpreadsheet size={16} /> {exporting ? 'Generando…' : 'Exportar a Excel'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={handleShare} disabled={sharing || exporting}>
+            <Share2 size={16} /> {sharing ? 'Preparando…' : 'Compartir'}
+          </Button>
+          <Button variant="primary" onClick={handleExport} disabled={exporting || sharing}>
+            <FileSpreadsheet size={16} /> {exporting ? 'Generando…' : 'Exportar a Excel'}
+          </Button>
+        </div>
       </div>
 
       {grupos.map((g) => (

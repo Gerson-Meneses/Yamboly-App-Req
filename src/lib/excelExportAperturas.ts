@@ -19,7 +19,7 @@ function fechaArchivo(): string {
   return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
 
-export async function exportAperturas(catalogos: Catalogos, aperturas: Apertura[]) {
+export async function buildAperturasFile(catalogos: Catalogos, aperturas: Apertura[]): Promise<File> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Generador de Requerimiento de Llaves';
   wb.created = new Date();
@@ -52,9 +52,9 @@ export async function exportAperturas(catalogos: Catalogos, aperturas: Apertura[
   ws.mergeCells(row, 1, row, NUM_COLS);
   const titleCell = ws.getCell(row, 1);
   titleCell.value = `APERTURAS ${fecha()}`;
-  titleCell.font = { bold: true, size: 13, color: { argb: '000000' } };
+  titleCell.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
   ws.getRow(row).height = 22;
   for (let c = 1; c <= NUM_COLS; c++) ws.getCell(row, c).border = allBorders;
   row++;
@@ -103,7 +103,7 @@ export async function exportAperturas(catalogos: Catalogos, aperturas: Apertura[
       dataRow.getCell(idxTotal).value = a.cantidad;
       dataRow.getCell(idxPagadas).value = a.pagada ? a.cantidad : '';
 
-      dataRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      dataRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
       for (let c = 2; c <= NUM_COLS; c++) {
         dataRow.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' };
       }
@@ -128,6 +128,13 @@ export async function exportAperturas(catalogos: Catalogos, aperturas: Apertura[
     subTotalCell.font = { bold: true };
     subTotalCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
+    const subPagadasCell = ws.getCell(row, idxPagadas);
+    subPagadasCell.value = {
+      formula: `SUM(${colLetter(idxPagadas)}${startRow}:${colLetter(idxPagadas)}${endRow})`,
+    } as ExcelJS.CellFormulaValue;
+    subPagadasCell.font = { bold: true };
+    subPagadasCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
     for (let c = 1; c <= NUM_COLS; c++) {
       ws.getCell(row, c).border = allBorders;
       ws.getCell(row, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
@@ -139,7 +146,7 @@ export async function exportAperturas(catalogos: Catalogos, aperturas: Apertura[
     const conf = ws.getCell(row, 1);
     conf.value = 'Conformidad de pago recibido — Firma:';
     conf.alignment = { horizontal: 'center', vertical: 'middle' };
-    conf.font = { italic: false, size: 11 };
+    conf.font = { italic: true, size: 10 };
     ws.getRow(row).height = 22;
     for (let c = 1; c <= NUM_COLS; c++) ws.getCell(row, c).border = allBorders;
     row++;
@@ -150,71 +157,44 @@ export async function exportAperturas(catalogos: Catalogos, aperturas: Apertura[
   ws.mergeCells(row, 1, row, totalLabelSpan);
   const totalLabel = ws.getCell(row, 1);
   totalLabel.value = 'Aperturas Totales';
-  totalLabel.font = { bold: true, color: { argb: '000000' } };
+  totalLabel.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   totalLabel.alignment = { horizontal: 'center', vertical: 'middle' };
-  totalLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+  totalLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
 
   const totalCell = ws.getCell(row, idxTotal);
   totalCell.value = totalGlobal;
-  totalCell.font = { bold: true, color: { argb: '000000' } };
+  totalCell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   totalCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  totalCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+  totalCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
 
   const pagadasCell = ws.getCell(row, idxPagadas);
-  pagadasCell.font = { bold: true, color: { argb: '000000' } };
+  pagadasCell.value = pagadasGlobal;
+  pagadasCell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   pagadasCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  pagadasCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+  pagadasCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
 
   for (let c = 1; c <= NUM_COLS; c++) ws.getCell(row, c).border = allBorders;
 
-  // Auto-ajuste de ancho de columnas según contenido
-  ws.columns?.forEach((column) => {
-    if (!column || typeof column.eachCell !== 'function') return;
-
-    let maxLength = 10;
-
-    column.eachCell({ includeEmpty: false }, (cell) => {
-      const master = cell.master;
-      if (master && master.address !== cell.address) return;
-
-      let cellLength = 0;
-
-      if (cell.value !== null && cell.value !== undefined) {
-        if (typeof cell.value === 'object') {
-          if ('formula' in cell.value) {
-            cellLength = 10;
-          } else if ('result' in cell.value && cell.value.result) {
-            cellLength = cell.value.result.toString().length;
-          } else if ('richText' in cell.value && Array.isArray(cell.value.richText)) {
-            cellLength = cell.value.richText.reduce((acc, t) => acc + t.text.length, 0);
-          }
-        } else {
-          cellLength = cell.value.toString().length;
-        }
-      }
-
-      if (cellLength > maxLength) {
-        maxLength = cellLength;
-      }
-    });
-
-    column.width = Math.min(maxLength + 4, 50);
+  // Column widths
+  const widths: Record<string, number> = {
+    Cliente: 32,
+    Monto: 12,
+    Zona: 16,
+    'Día': 14,
+    Total: 10,
+    Pagadas: 10,
+  };
+  cols.forEach((label, i) => {
+    ws.getColumn(i + 1).width = widths[label] ?? 14;
   });
 
   ws.pageSetup.printTitlesRow = '1:2';
 
   const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
+  const filename = `Aperturas_${fechaArchivo()}.xlsx`;
+  return new File([buffer], filename, {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Aperturas_${fechaArchivo()}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 function colLetter(n: number): string {

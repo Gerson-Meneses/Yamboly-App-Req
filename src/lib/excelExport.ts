@@ -5,7 +5,7 @@ const COLS = ['Cliente', 'Motivo', 'Modelo', 'Pagará', 'Total Solicitado', 'Tot
 const NUM_COLS = COLS.length;
 
 const thin = { style: 'thin' as const, color: { argb: 'FF000000' } };
-const allBorders = { top: thin, center: thin, bottom: thin, right: thin };
+const allBorders = { top: thin, left: thin, bottom: thin, right: thin };
 
 function fecha(): string {
   const meses = [
@@ -22,7 +22,7 @@ function fechaArchivo(): string {
   return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
 
-export async function exportRequerimiento(catalogos: Catalogos, registros: Registro[]) {
+export async function buildRequerimientoFile(catalogos: Catalogos, registros: Registro[]): Promise<File> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Generador de Requerimiento de Llaves';
   wb.created = new Date();
@@ -37,9 +37,9 @@ export async function exportRequerimiento(catalogos: Catalogos, registros: Regis
   ws.mergeCells(row, 1, row, NUM_COLS);
   const titleCell = ws.getCell(row, 1);
   titleCell.value = `REQUERIMIENTO DE LLAVES ${fecha()}`;
-  titleCell.font = { bold: true, size: 13, color: { argb: '000000' } };
+  titleCell.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
   ws.getRow(row).height = 22;
   for (let c = 1; c <= NUM_COLS; c++) ws.getCell(row, c).border = allBorders;
   row++;
@@ -87,7 +87,7 @@ export async function exportRequerimiento(catalogos: Catalogos, registros: Regis
       dataRow.getCell(4).value = r.pagara || '';
       dataRow.getCell(5).value = r.cantidad;
       dataRow.getCell(6).value = r.totalEntregado ?? '';
-      dataRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      dataRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
       for (let c = 2; c <= NUM_COLS; c++) {
         dataRow.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' };
       }
@@ -116,11 +116,22 @@ export async function exportRequerimiento(catalogos: Catalogos, registros: Regis
     row++;
 
     // Conformidad / firma row
-    ws.mergeCells(row, 1, row, 6);
+    ws.mergeCells(row, 1, row, 3);
     const firmaLabel = ws.getCell(row, 1);
     firmaLabel.value = 'Conformidad de entrega — Firma:';
-    firmaLabel.alignment = { horizontal: 'center', vertical: 'middle' };
-    firmaLabel.font = { italic: false, size: 11 };
+    firmaLabel.alignment = { horizontal: 'left', vertical: 'middle' };
+    firmaLabel.font = { italic: true, size: 9 };
+
+    ws.mergeCells(row, 4, row, 5);
+    const entregadoLabel = ws.getCell(row, 4);
+    entregadoLabel.value = 'Total entregado confirmado:';
+    entregadoLabel.alignment = { horizontal: 'left', vertical: 'middle' };
+    entregadoLabel.font = { italic: true, size: 9 };
+
+    const fechaCell = ws.getCell(row, 6);
+    fechaCell.value = 'Fecha: ____/____/______';
+    fechaCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    fechaCell.font = { italic: true, size: 9 };
 
     ws.getRow(row).height = 26;
     for (let c = 1; c <= NUM_COLS; c++) ws.getCell(row, c).border = allBorders;
@@ -132,9 +143,9 @@ export async function exportRequerimiento(catalogos: Catalogos, registros: Regis
   ws.mergeCells(row, 1, row, NUM_COLS);
   const totModCell = ws.getCell(row, 1);
   totModCell.value = 'Total Por Modelo';
-  totModCell.font = { bold: true, color: { argb: '000000' } };
+  totModCell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   totModCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  totModCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+  totModCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
   for (let c = 1; c <= NUM_COLS; c++) ws.getCell(row, c).border = allBorders;
   row++;
 
@@ -169,52 +180,17 @@ export async function exportRequerimiento(catalogos: Catalogos, registros: Regis
     ws.getCell(row, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
   }
 
-  // Auto-ajuste de ancho de columnas según contenido
-  ws.columns?.forEach((column) => {
-    if (!column || typeof column.eachCell !== 'function') return;
-
-    let maxLength = 10;
-
-    column.eachCell({ includeEmpty: false }, (cell) => {
-      const master = cell.master;
-      if (master && master.address !== cell.address) return;
-
-      let cellLength = 0;
-
-      if (cell.value !== null && cell.value !== undefined) {
-        if (typeof cell.value === 'object') {
-          if ('formula' in cell.value) {
-            cellLength = 10;
-          } else if ('result' in cell.value && cell.value.result) {
-            cellLength = cell.value.result.toString().length;
-          } else if ('richText' in cell.value && Array.isArray(cell.value.richText)) {
-            cellLength = cell.value.richText.reduce((acc, t) => acc + t.text.length, 0);
-          }
-        } else {
-          cellLength = cell.value.toString().length;
-        }
-      }
-
-      if (cellLength > maxLength) {
-        maxLength = cellLength;
-      }
-    });
-
-    column.width = Math.min(maxLength + 1, 50);
+  // Column widths (auto-fit approximation)
+  const widths = [30, 20, 14, 10, 16, 16];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
   });
 
   ws.pageSetup.printTitlesRow = '1:2';
 
   const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
+  const filename = `Requerimiento_de_Llaves_${fechaArchivo()}.xlsx`;
+  return new File([buffer], filename, {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Requerimiento_de_Llaves_${fechaArchivo()}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }

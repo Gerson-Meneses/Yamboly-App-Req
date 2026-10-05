@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { v4 as uuid } from 'uuid';
-import { Plus, Trash2, ArrowRight, Users, Pencil, Check, X } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Users, Pencil, Check, X, Eraser } from 'lucide-react';
 import type { Catalogos, Registro } from '../types';
 import Button from './ui/Button';
 import { Input, Select, Label } from './ui/Field';
@@ -46,6 +46,14 @@ export default function CaptureView({ catalogos, registros, setRegistros }: Prop
 
   function eliminar(id: string) {
     setRegistros(registros.filter((r) => r.id !== id));
+  }
+
+  function limpiarCampos() {
+    setCliente('');
+    setMotivo(catalogos.motivos[0]?.nombre ?? '');
+    setModelo(catalogos.modelos[0]?.nombre ?? '');
+    setPagara('No');
+    setCantidad(1);
   }
 
   const [editId, setEditId] = useState<string | null>(null);
@@ -154,9 +162,14 @@ export default function CaptureView({ catalogos, registros, setRegistros }: Prop
               placeholder="Cantidad"
             />
           </div>
-          <Button variant="primary" className="mt-3 w-full" onClick={agregar} disabled={!vendedorId}>
-            <Plus size={16} /> Agregar
-          </Button>
+          <div className="flex gap-2 mt-3">
+            <Button variant="primary" className="flex-1" onClick={agregar} disabled={!vendedorId}>
+              <Plus size={16} /> Agregar
+            </Button>
+            <Button variant="secondary" onClick={limpiarCampos} title="Limpiar campos del formulario">
+              <Eraser size={16} /> Limpiar campos
+            </Button>
+          </div>
         </Card>
 
         <Card className="p-4">

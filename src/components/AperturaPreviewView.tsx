@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, Share2 } from 'lucide-react';
 import type { Catalogos, Apertura } from '../types';
 import { Card } from './ui/Card';
 import Button from './ui/Button';
-import { exportAperturas } from '../lib/excelExportAperturas';
+import { buildAperturasFile } from '../lib/excelExportAperturas';
+import { downloadFile, shareFile } from '../lib/fileActions';
 
 interface Props {
   catalogos: Catalogos;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function AperturaPreviewView({ catalogos, aperturas }: Props) {
   const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const usaMonto = aperturas.some((a) => a.monto !== null && a.monto !== undefined);
   const usaZona = aperturas.some((a) => (a.zona ?? '').trim() !== '');
@@ -37,9 +39,20 @@ export default function AperturaPreviewView({ catalogos, aperturas }: Props) {
   async function handleExport() {
     setExporting(true);
     try {
-      await exportAperturas(catalogos, aperturas);
+      const file = await buildAperturasFile(catalogos, aperturas);
+      downloadFile(file);
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleShare() {
+    setSharing(true);
+    try {
+      const file = await buildAperturasFile(catalogos, aperturas);
+      await shareFile(file, 'Aperturas');
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -53,11 +66,16 @@ export default function AperturaPreviewView({ catalogos, aperturas }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-lg font-semibold">Vista previa de aperturas</h2>
-        <Button variant="primary" onClick={handleExport} disabled={exporting}>
-          <FileSpreadsheet size={16} /> {exporting ? 'Generando…' : 'Exportar a Excel'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={handleShare} disabled={sharing || exporting}>
+            <Share2 size={16} /> {sharing ? 'Preparando…' : 'Compartir'}
+          </Button>
+          <Button variant="primary" onClick={handleExport} disabled={exporting || sharing}>
+            <FileSpreadsheet size={16} /> {exporting ? 'Generando…' : 'Exportar a Excel'}
+          </Button>
+        </div>
       </div>
 
       {grupos.map((g) => (

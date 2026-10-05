@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { v4 as uuid } from 'uuid';
-import { Plus, Trash2, ArrowRight, Users, Pencil, Check, X } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Users, Pencil, Check, X, Eraser } from 'lucide-react';
 import type { Catalogos, Apertura } from '../types';
 import Button from './ui/Button';
 import { Input, Select, Label } from './ui/Field';
@@ -42,6 +42,10 @@ export default function AperturaCaptureView({ catalogos, aperturas, setAperturas
       pagada,
     };
     setAperturas([...aperturas, nueva]);
+    limpiarCampos();
+  }
+
+  function limpiarCampos() {
     setCliente('');
     setCantidad(1);
     setMonto('');
@@ -174,9 +178,14 @@ export default function AperturaCaptureView({ catalogos, aperturas, setAperturas
               <Input placeholder="Ej. 14/08/2026" value={dia} onChange={(e) => setDia(e.target.value)} />
             </div>
           </div>
-          <Button variant="primary" className="mt-3 w-full" onClick={agregar} disabled={!vendedorId}>
-            <Plus size={16} /> Agregar
-          </Button>
+          <div className="flex gap-2 mt-3">
+            <Button variant="primary" className="flex-1" onClick={agregar} disabled={!vendedorId}>
+              <Plus size={16} /> Agregar
+            </Button>
+            <Button variant="secondary" onClick={limpiarCampos} title="Limpiar campos del formulario">
+              <Eraser size={16} /> Limpiar campos
+            </Button>
+          </div>
         </Card>
 
         <Card className="p-4">
